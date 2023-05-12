@@ -9,15 +9,15 @@ import torchvision.datasets as dset
 import torchvision.transforms as tforms
 from torchvision.utils import save_image
 
-import lib.layers as layers
-import lib.utils as utils
-import lib.odenvp as odenvp
-import lib.multiscale_parallel as multiscale_parallel
+import ffjord.lib.layers as layers
+import ffjord.lib.utils as utils
+import ffjord.lib.odenvp as odenvp
+import ffjord.lib.multiscale_parallel as multiscale_parallel
 
-from train_misc import standard_normal_logprob
-from train_misc import set_cnf_options, count_nfe, count_parameters, count_total_time
-from train_misc import add_spectral_norm, spectral_norm_power_iteration
-from train_misc import create_regularization_fns, get_regularization, append_regularization_to_log
+from ffjord.train_misc import standard_normal_logprob
+from ffjord.train_misc import set_cnf_options, count_nfe, count_parameters, count_total_time
+from ffjord.train_misc import add_spectral_norm, spectral_norm_power_iteration
+from ffjord.train_misc import create_regularization_fns, get_regularization, append_regularization_to_log
 
 # go fast boi!!
 torch.backends.cudnn.benchmark = True
@@ -211,18 +211,21 @@ def get_dataset(args):
     )
     return train_set, test_loader, data_shape
 
+# def save_trace(x, model):
+#     zero = torch.zeros(x.shape[0], 1).to(x)
+#     trace = torch.jit.trace(model, (x, zero))
+#     torch.jit.save('/ffjord_trace.pth')
+#     print('SAVED')
 
 def compute_bits_per_dim(x, model):
     zero = torch.zeros(x.shape[0], 1).to(x)
-
-    # Don't use data parallelize if batch size is small.
-    # if x.shape[0] < 200:
-    #     model = model.module
-
     z, delta_logp = model(x, zero)  # run model forward
+
 
     logpz = standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     logpx = logpz - delta_logp
+
+    print('logpx', logpx)
 
     logpx_per_dim = torch.sum(logpx) / x.nelement()  # averaged over batches
     bits_per_dim = -(logpx_per_dim - np.log(256)) / np.log(2)
@@ -314,6 +317,7 @@ if __name__ == "__main__":
 
     # get deivce
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     cvt = lambda x: x.type(torch.float32).to(device, non_blocking=True)
 
     # load dataset
@@ -343,6 +347,9 @@ if __name__ == "__main__":
                 for k, v in state.items():
                     if torch.is_tensor(v):
                         state[k] = cvt(v)
+
+    # torch.save
+    # exit()
 
     if torch.cuda.is_available():
         model = torch.nn.DataParallel(model).cuda()
@@ -374,6 +381,8 @@ if __name__ == "__main__":
             # cast data and move to device
             x = cvt(x)
             # compute loss
+
+            print('data', x)
             loss = compute_bits_per_dim(x, model)
             if regularization_coeffs:
                 reg_states = get_regularization(model, regularization_coeffs)
@@ -423,7 +432,7 @@ if __name__ == "__main__":
                         x = x.view(x.shape[0], -1)
                     x = cvt(x)
                     loss = compute_bits_per_dim(x, model)
-                    losses.append(loss)
+                    losses.append(loss.cpu())
 
                 loss = np.mean(losses)
                 logger.info("Epoch {:04d} | Time {:.4f}, Bit/dim {:.4f}".format(epoch, time.time() - start, loss))

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-import lib.layers as layers
-from lib.layers.odefunc import ODEnet
+import ffjord.lib.layers as layers
+from ffjord.lib.layers.odefunc import ODEnet
 import numpy as np
 
 
