@@ -86,7 +86,7 @@ parser.add_argument(
 )
 
 parser.add_argument("--begin_epoch", type=int, default=1)
-parser.add_argument("--resume", type=str, default='/home/ray/Documents/ffjord/experiments/cnf/xray_ffjord_40.pth')
+parser.add_argument("--resume", type=str, default='/home/ray/Documents/ffjord/experiments/xray/tumor_xray_ffjord_checkpt.pth')
 parser.add_argument("--save", type=str, default="experiments/cnf")
 parser.add_argument("--val_freq", type=int, default=1)
 parser.add_argument("--log_freq", type=int, default=10)
